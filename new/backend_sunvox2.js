@@ -369,9 +369,9 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			// in spite of the int16 sample output settings it seems that the original player
 			// expects 2 separated channels based on F32!?? while the EmsHEAP16BackendAdapter needs interleaved int16			
 			
-			var t= this.framesPlayed & 0xffff;	// WTF this is used for?
+			var t= this.framesPlayed & 0x7ff;	// WTF this is used for?
 			
-			var buf_ptr1 = window.svRenderer( sda_data, len, 10000 );
+			var buf_ptr1 = window.svRenderer( sda_data, len, t );
 				
 			for (var i= 0; i<len; i++) {	// interleave data
 				var l= this.Module.HEAPF32[(buf_ptr1 >> 2) + i] * 0x8000;			// convert to int16 
