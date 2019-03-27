@@ -25,13 +25,20 @@ in the 'src' folder. I threw out some of the obviously unused stuff from the ori
 And any changes within the code are marked using respective EMSCRIPTEN ifdefs. (There is probably much unused
 stuff left - that will most likely be cleaned out by the optimizer.) 
 
-I only later found that Alex Zolotov already had done a web port of his player himself, see
+I don't know how the codebase that I used relates to the SunVox 1.9.4 version that Alex Zolotov currently 
+released on his webpage (unfortunately it doesn't include the source code to build from). It seems to be an older 
+version and newer songs don't play. 
+
+I only found later that Alex Zolotov already had done a web port of his player himself, see
 <a href="http://www.warmplace.ru/soft/sunvox/sunvox_lib-1.9.4c.zip">SunVox library for developers</a>. 
 So the main purpose of my additional port is to plug into with my generic player (as all my other web ports).
 
-I don't know how the codebase that I used relates to the SunVox 1.9.4 version that Alex Zolotov currently 
-released on his webpage (unfortunately it doesn't include the source code to build from). It might be an older 
-version but I guess it should be good enough to handle the music files currently available on modland.com. 
+
+Unfortunately the source of the new version is not yet released. However I manually patched up a "backend"
+based on Alex's prebuilt WASM version. The respective experiment can be found in the "new" folder. (CAUTION: 
+the load path of the implicitly used sunvox.wasm file depends on how the backend file is loaded and you may 
+need to manually adjust the respective path in the backend file.)
+
 
 ## Howto build
 
@@ -64,9 +71,11 @@ in the htdocs/music folder (you can configure them in the 'songs' list in index.
 
 ## License
 
-The version of Alex Zolotov's code that I am building on specifies a BSD license. (The 1.9.4 version 
-mentioned above now uses a "CC BY-SA 3.0" license which I'd be fine with as well, but for consistency
-I'll stick to BSD here.)
+The version of Alex Zolotov's code that I am building on specifies a BSD license whereas his new 1.9.4 version 
+now uses a "CC BY-SA 3.0" license. This means that the "regularly built from source" library uses the BSD license
+and the manually patched up library in "new" folder uses CC BY-SA 3.0. (The example code in the htdocs subfolder may use
+different licensing.)
+
 
 The BSD License
 
