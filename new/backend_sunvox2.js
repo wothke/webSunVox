@@ -1,9 +1,10 @@
 // SunVox modular synthesizer
 // Copyright (c) 2008 - 2018, Alexander Zolotov <nightradio@gmail.com>, WarmPlace.ru
 
-// with added wrappers to use it as a "backend" for my generic scriptnodeplayer
+// Added wrappers for use as a "backend" for generic scriptprocessor_player.js
 // Copyright (c) 2019, Jürgen Wothke
 
+// License: CC BY-SA 3.0
 
 // added: event handling for loading of WASM
 window.spp_backend_state_SUNVOX= {
@@ -48,12 +49,12 @@ if (typeof exports === 'object' && typeof module === 'object')
 */  
   
 // -------------------------- inlined code from original sunvox_lib_loader.js --------------
+// (removed all the unused stuff, e.g. access to pattern/module info etc)
+
 //
 // Library init
 //
 
-var sv_scope_buf_mptr = null;
-const sv_scope_buf_numsamples = 4096;
 var sv_callback_buf_mptr = null; //output
 var sv_callback_buf2_mptr = null; //input
 var sv_callback_buf_numframes = 0;
@@ -64,25 +65,11 @@ var svlib = backend_SUNVOX.Module;	// patched to use my standard Module wrapping
 //
 // Constants
 //
-
-const NOTECMD_NOTE_OFF = 128;
-const NOTECMD_ALL_NOTES_OFF = 129; /* notes of all synths off */
-const NOTECMD_CLEAN_SYNTHS = 130; /* stop and clean all synths */
-const NOTECMD_STOP = 131;
-const NOTECMD_PLAY = 132;
-
 const SV_INIT_FLAG_NO_DEBUG_OUTPUT = ( 1 << 0 );
 const SV_INIT_FLAG_USER_AUDIO_CALLBACK = ( 1 << 1 ); /* Interaction with sound card is on the user side */
 const SV_INIT_FLAG_AUDIO_INT16 = ( 1 << 2 );
 const SV_INIT_FLAG_AUDIO_FLOAT32 = ( 1 << 3 );
 const SV_INIT_FLAG_ONE_THREAD = ( 1 << 4 ); /* Audio callback and song modification functions are in single thread */
-
-const SV_MODULE_FLAG_EXISTS = 1;
-const SV_MODULE_FLAG_EFFECT = 2;
-const SV_MODULE_INPUTS_OFF = 16;
-const SV_MODULE_INPUTS_MASK = ( 255 << SV_MODULE_INPUTS_OFF );
-const SV_MODULE_OUTPUTS_OFF = ( 16 + 8 );
-const SV_MODULE_OUTPUTS_MASK = ( 255 << SV_MODULE_OUTPUTS_OFF );
 
 //
 // Functions
@@ -156,6 +143,7 @@ function sv_open_slot( slot ) { return svlib._sv_open_slot( slot ); }
 function sv_close_slot( slot ) { return svlib._sv_close_slot( slot ); }
 function sv_lock_slot( slot ) { return svlib._sv_lock_slot( slot ); }
 function sv_unlock_slot( slot ) { return svlib._sv_unlock_slot( slot ); }
+
 function sv_load_from_memory( slot, byte_array ) //load from Uint8Array
 {
     var mptr = svlib.allocate( byte_array, 'i8', svlib.ALLOC_NORMAL );
@@ -164,117 +152,11 @@ function sv_load_from_memory( slot, byte_array ) //load from Uint8Array
     svlib._free( mptr );
     return rv;
 }
-function sv_play( slot ) { return svlib._sv_play( slot ); }
 function sv_play_from_beginning( slot ) { return svlib._sv_play_from_beginning( slot ); }
-function sv_stop( slot ) { return svlib._sv_stop( slot ); }
-function sv_set_autostop( slot, autostop ) { return svlib._sv_set_autostop( slot, autostop ); }
-function sv_end_of_song( slot ) { return svlib._sv_end_of_song( slot ); }
-function sv_rewind( slot, line_num ) { return svlib._sv_rewind( slot, line_num ); }
 function sv_volume( slot, vol ) { return svlib._sv_volume( slot, vol ); }
-function sv_send_event( slot, track, note, vel, module, ctl, ctl_val ) { return svlib._sv_send_event( slot, track, note, vel, module, ctl, ctl_val ); }
-function sv_get_current_line( slot ) { return svlib._sv_get_current_line( slot ); }
-function sv_get_current_line2( slot ) { return svlib._sv_get_current_line2( slot ); }
-function sv_get_current_signal_level( slot, channel ) { return svlib._sv_get_current_signal_level( slot, channel ); }
 function sv_get_song_name( slot ) { return svlib.Pointer_stringify( svlib._sv_get_song_name( slot ) ); }
-function sv_get_song_bpm( slot ) { return svlib._sv_get_song_bpm( slot ); }
-function sv_get_song_tpl( slot ) { return svlib._sv_get_song_tpl( slot ); }
 function sv_get_song_length_frames( slot ) { return svlib._sv_get_song_length_frames( slot ); }
-function sv_get_song_length_lines( slot ) { return svlib._sv_get_song_length_lines( slot ); }
-function sv_new_module( slot, type, name, x, y, z ) //USE LOCK/UNLOCK!
-{ 
-    var type_mptr = svlib.allocate( svlib.intArrayFromString( type ), 'i8', svlib.ALLOC_NORMAL );
-    if( type_mptr == 0 ) return -1;
-    var name_mptr = svlib.allocate( svlib.intArrayFromString( name ), 'i8', svlib.ALLOC_NORMAL );
-    if( name_mptr == 0 ) return -1;
-    var rv = svlib._sv_new_module( slot, type_mptr, name_mptr, x, y, z );
-    svlib._free( type_mptr );
-    svlib._free( name_mptr );
-    return rv;
-}
-function sv_remove_module( slot, mod_num ) { return svlib._sv_remove_module( slot, mod_num ); } //USE LOCK/UNLOCK!
-function sv_connect_module( slot, source, destination ) { return svlib._sv_connect_module( slot, source, destination ); } //USE LOCK/UNLOCK!
-function sv_disconnect_module( slot, source, destination ) { return svlib._sv_disconnect_module( slot, source, destination ); } //USE LOCK/UNLOCK!
-function sv_load_module_from_memory( slot, byte_array, x, y, z ) //load from Uint8Array
-{
-    var mptr = svlib.allocate( byte_array, 'i8', svlib.ALLOC_NORMAL );
-    if( mptr == 0 ) return -1;
-    var rv = svlib._sv_load_module_from_memory( slot, mptr, byte_array.byteLength, x, y, z );
-    svlib._free( mptr );
-    return rv;
-}
-function sv_sampler_load_from_memory( slot, sampler_module, byte_array, sample_slot ) //load from Uint8Array
-{
-    var mptr = svlib.allocate( byte_array, 'i8', svlib.ALLOC_NORMAL );
-    if( mptr == 0 ) return -1;
-    var rv = svlib._sv_sampler_load_from_memory( slot, sampler_module, mptr, byte_array.byteLength, sample_slot );
-    svlib._free( mptr );
-    return rv;
-}
-function sv_get_number_of_modules( slot ) { return svlib._sv_get_number_of_modules( slot ); }
-function sv_get_module_flags( slot, mod_num ) { return svlib._sv_get_module_flags( slot, mod_num ); }
-function sv_get_module_inputs( slot, mod_num ) //return value: Int32Array
-{
-    var rv = null;
-    var flags = sv_get_module_flags( slot, mod_num );
-    var num = ( flags & SV_MODULE_INPUTS_MASK ) >> SV_MODULE_INPUTS_OFF;
-    var mptr = svlib._sv_get_module_inputs( slot, mod_num );
-    if( mptr != 0 ) rv = svlib.HEAP32.subarray( mptr >> 2, ( mptr >> 2 ) + num );
-    return rv;
-}
-function sv_get_module_outputs( slot, mod_num ) //return value: Int32Array
-{ 
-    var rv = null;
-    var flags = sv_get_module_flags( slot, mod_num );
-    var num = ( flags & SV_MODULE_OUTPUTS_MASK ) >> SV_MODULE_OUTPUTS_OFF;
-    var mptr = svlib._sv_get_module_outputs( slot, mod_num );
-    if( mptr != 0 ) rv = svlib.HEAP32.subarray( mptr >> 2, ( mptr >> 2 ) + num ); //not a new array; just a new view of the HEAP
-    return rv;
-}
-function sv_get_module_name( slot, mod_num ) { return svlib.Pointer_stringify( svlib._sv_get_module_name( slot, mod_num ) ); }
-function sv_get_module_xy( slot, mod_num ) { return svlib._sv_get_module_xy( slot, mod_num ); }
-function sv_get_module_color( slot, mod_num ) { return svlib._sv_get_module_color( slot, mod_num ); }
-function sv_get_module_scope2( slot, mod_num, channel, dest_buf_int16, samples_to_read ) //save to dest_buf_int16 (Int16Array)
-{
-    if( sv_scope_buf_mptr == null )
-    {
-	sv_scope_buf_mptr = svlib._malloc( sv_scope_buf_numsamples * 2 );
-    }
-    if( samples_to_read > sv_scope_buf_numsamples ) samples_to_read = sv_scope_buf_numsamples;
-    var rv = svlib._sv_get_module_scope2( slot, mod_num, channel, sv_scope_buf_mptr, samples_to_read );
-    if( rv > 0 )
-    {
-	var s = svlib.HEAP16.subarray( sv_scope_buf_mptr >> 1, ( sv_scope_buf_mptr >> 1 ) + rv );
-	dest_buf_int16.set( s, 0 ); //copy data from s to dest_buf
-    }
-    return rv;
-}
-function sv_get_number_of_module_ctls( slot, mod_num ) { return svlib._sv_get_number_of_module_ctls( slot, mod_num ); }
-function sv_get_module_ctl_name( slot, mod_num, ctl_num ) { return svlib.Pointer_stringify( svlib._sv_get_module_ctl_name( slot, mod_num, ctl_num ) ); }
-function sv_get_module_ctl_value( slot, mod_num, ctl_num, scaled ) { return svlib._sv_get_module_ctl_value( slot, mod_num, ctl_num, scaled ); }
-function sv_get_number_of_patterns( slot ) { return svlib._sv_get_number_of_patterns( slot ); }
-function sv_get_pattern_x( slot, pat_num ) { return svlib._sv_get_pattern_x( slot, pat_num ); }
-function sv_get_pattern_y( slot, pat_num ) { return svlib._sv_get_pattern_y( slot, pat_num ); }
-function sv_get_pattern_tracks( slot, pat_num ) { return svlib._sv_get_pattern_tracks( slot, pat_num ); }
-function sv_get_pattern_lines( slot, pat_num ) { return svlib._sv_get_pattern_lines( slot, pat_num ); }
-function sv_get_pattern_data( slot, pat_num ) //return value: UInt8Array; 8 bytes per event in format: NN VV MM 00 CC YY XX
-{
-    var rv = null;
-    var numtracks = svlib._sv_get_pattern_tracks( slot, pat_num );
-    var numlines = svlib._sv_get_pattern_lines( slot, pat_num );
-    if( numtracks != 0 && numlines != 0 )
-    {
-	var mptr = svlib._sv_get_pattern_data( slot, pat_num );
-	if( mptr != 0 )
-	{
-	    rv = svlib.HEAPU8.subarray( mptr, mptr + numtracks * numlines * 8 );
-	}
-    }
-    return rv;
-}
-function sv_pattern_mute( slot, pat_num, mute ) { return svlib._sv_pattern_mute( slot, pat_num, mute ); } //USE LOCK/UNLOCK!
-function sv_get_ticks() { return svlib._sv_get_ticks(); }
-function sv_get_ticks_per_second() { return svlib._sv_get_ticks_per_second(); }
-function sv_get_log( size ) { return svlib.Pointer_stringify( svlib._sv_get_log( size ) ); }
+
 
 
 /*
@@ -308,7 +190,7 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 		$this.base.call(this, backend_SUNVOX.Module, this.channels);
 
 		this.isReady= false;
-
+		this.framesPlayed= 0;
 		this.tmpBuffer;
 		
 		if (!backend_SUNVOX.Module.notReady) {
@@ -316,8 +198,7 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			// i.e. it has to be called explicitly here (in async scenario "onRuntimeInitialized" will trigger
 			// the call directly)
 			this.doOnAdapterReady();
-		}		
-		
+		}			
 	}; 
 	extend(EmsHEAP16BackendAdapter, $this, {
 		doOnAdapterReady: function() {
@@ -332,7 +213,9 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			// logic the flags seem to be without any effects..)
 			
 			var flags= SV_INIT_FLAG_ONE_THREAD | SV_INIT_FLAG_AUDIO_FLOAT32 ;
-			var ver = sv_init( 0, window._gPlayerAudioCtx.sampleRate, this.channels, flags ); //Global sound system init
+			
+			// for some reason sunvox expects fixed 44100 here..
+			var ver = sv_init( 0, 44100, this.channels, flags ); //Global sound system init
 			if( ver >= 0 ) {
 				//Show information about the library:
 				var major = ( ver >> 16 ) & 255;
@@ -399,7 +282,7 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			return sv_get_song_length_frames( 0 );
 		},
 		getPlaybackPosition: function() {
-			return 0;
+			return this.framesPlayed;
 		},
 		seekPlaybackPosition: function(pos) {
 			// not implemented yet
