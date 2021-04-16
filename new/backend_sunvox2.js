@@ -47,115 +47,6 @@ if (typeof exports === 'object' && typeof module === 'object')
   else if (typeof exports === 'object')
     exports["SunVoxLib"] = SunVoxLib;
 */  
-  
-// -------------------------- inlined code from original sunvox_lib_loader.js --------------
-// (removed all the unused stuff, e.g. access to pattern/module info etc)
-
-//
-// Library init
-//
-
-var sv_callback_buf_mptr = null; //output
-var sv_callback_buf2_mptr = null; //input
-var sv_callback_buf_numframes = 0;
-var sv_flags = 0;
-var sv_channels = 0;
-var svlib = backend_SUNVOX.Module;	// patched to use my standard Module wrapping
-
-//
-// Constants
-//
-const SV_INIT_FLAG_NO_DEBUG_OUTPUT = ( 1 << 0 );
-const SV_INIT_FLAG_USER_AUDIO_CALLBACK = ( 1 << 1 ); /* Interaction with sound card is on the user side */
-const SV_INIT_FLAG_AUDIO_INT16 = ( 1 << 2 );
-const SV_INIT_FLAG_AUDIO_FLOAT32 = ( 1 << 3 );
-const SV_INIT_FLAG_ONE_THREAD = ( 1 << 4 ); /* Audio callback and song modification functions are in single thread */
-
-//
-// Functions
-//
-
-//Read more information in headers/sunvox.h
-//Use the functions with the label "USE LOCK/UNLOCK" within the sv_lock_slot() / sv_unlock_slot() block only!
-
-function sv_init( config, freq, channels, flags ) 
-{
-    var config_mptr = 0;
-    if( config != 0 && config != null ) 
-	config_mptr = svlib.allocate( svlib.intArrayFromString( config ), 'i8', svlib.ALLOC_NORMAL );
-    sv_flags = flags;
-    sv_channels = channels;
-    var rv = svlib._sv_init( config_mptr, freq, channels, flags );
-    svlib._free( config_mptr );
-    return rv;
-}
-function sv_deinit() { return svlib._sv_deinit(); }
-function sv_update_input() { return svlib._sv_update_input(); }
-function sv_audio_callback( out_buf, frames, latency, out_time )
-{
-    //get the next piece of SunVox audio from the Output module to the out_buf (Int16Array or Float32Array);
-    //stereo data will be interleaved in the output buffer: LRLR... ; where the LR is the one frame (Left+Right channels)
-    return sv_audio_callback2( out_buf, frames, latency, out_time, 0, 0, null );
-}
-function sv_audio_callback2( out_buf, frames, latency, out_time, in_type, in_channels, in_buf )
-{
-    //get the next piece of SunVox audio from the Output module to the out_buf (Int16Array or Float32Array);
-    //data from the in_buf (Int16Array or Float32Array) will be copied to the Input buffer;
-    //in_type - input buffer type: 0 - Int16Array; 1 - Float32Array;
-    //in_channels - number of input channels.
-    var frame_size = sv_channels * 2; //output
-    var frame_size2 = in_channels * 2; //input
-    if( sv_flags & SV_INIT_FLAG_AUDIO_FLOAT32 ) frame_size *= 2;
-    if( in_type == 1 ) frame_size2 *= 2;
-    if( frames > sv_callback_buf_numframes ) {
-		svlib._free( sv_callback_buf_mptr );
-		svlib._free( sv_callback_buf2_mptr );
-		sv_callback_buf_mptr = null;
-		sv_callback_buf2_mptr = null;
-    }
-    if( sv_callback_buf_mptr == null ) {
-		sv_callback_buf_numframes = frames;
-		sv_callback_buf_mptr = svlib._malloc( frames * frame_size ); //output
-    }
-    if( sv_callback_buf2_mptr == null ) {
-		if( frame_size2 != 0 ) sv_callback_buf2_mptr = svlib._malloc( frames * frame_size2 ); //input
-    }
-    var rv, buf;
-    if( in_buf == null ) {
-		rv = svlib._sv_audio_callback( sv_callback_buf_mptr, frames, latency, out_time );
-    } else {
-		if( in_type == 1 ) {
-			buf = svlib.HEAPF32.subarray( sv_callback_buf2_mptr >> 2, ( sv_callback_buf2_mptr >> 2 ) + frames * in_channels );
-		} else {
-			buf = svlib.HEAP16.subarray( sv_callback_buf2_mptr >> 1, ( sv_callback_buf2_mptr >> 1 ) + frames * in_channels );
-		}
-		buf.set( in_buf, 0 ); //in_buf -> buf
-		rv = svlib._sv_audio_callback2( sv_callback_buf_mptr, frames, latency, out_time, in_type, in_channels, sv_callback_buf2_mptr );
-    }
-    if( sv_flags & SV_INIT_FLAG_AUDIO_FLOAT32 )
-		buf = svlib.HEAPF32.subarray( sv_callback_buf_mptr >> 2, ( sv_callback_buf_mptr >> 2 ) + frames * sv_channels );
-    else
-		buf = svlib.HEAP16.subarray( sv_callback_buf_mptr >> 1, ( sv_callback_buf_mptr >> 1 ) + frames * sv_channels );
-    out_buf.set( buf, 0 ); //buf -> out_buf
-    return rv;
-}
-function sv_open_slot( slot ) { return svlib._sv_open_slot( slot ); }
-function sv_close_slot( slot ) { return svlib._sv_close_slot( slot ); }
-function sv_lock_slot( slot ) { return svlib._sv_lock_slot( slot ); }
-function sv_unlock_slot( slot ) { return svlib._sv_unlock_slot( slot ); }
-
-function sv_load_from_memory( slot, byte_array ) //load from Uint8Array
-{
-    var mptr = svlib.allocate( byte_array, 'i8', svlib.ALLOC_NORMAL );
-    if( mptr == 0 ) return -1;
-    var rv = svlib._sv_load_from_memory( slot, mptr, byte_array.byteLength );
-    svlib._free( mptr );
-    return rv;
-}
-function sv_play_from_beginning( slot ) { return svlib._sv_play_from_beginning( slot ); }
-function sv_volume( slot, vol ) { return svlib._sv_volume( slot, vol ); }
-function sv_get_song_name( slot ) { return svlib.Pointer_stringify( svlib._sv_get_song_name( slot ) ); }
-function sv_get_song_length_frames( slot ) { return svlib._sv_get_song_length_frames( slot ); }
 
 
 
@@ -167,31 +58,26 @@ function sv_get_song_length_frames( slot ) { return svlib._sv_get_song_length_fr
  Copyright (C) 2019 Juergen Wothke
 */
 
+const SV_INIT_FLAG_NO_DEBUG_OUTPUT = ( 1 << 0 );
+const SV_INIT_FLAG_USER_AUDIO_CALLBACK = ( 1 << 1 ); /* Interaction with sound card is on the user side */
+const SV_INIT_FLAG_AUDIO_INT16 = ( 1 << 2 );
+const SV_INIT_FLAG_AUDIO_FLOAT32 = ( 1 << 3 );
+const SV_INIT_FLAG_ONE_THREAD = ( 1 << 4 ); /* Audio callback and song modification functions are in single thread */
+
 setGlobalWebAudioCtx(); // just in case: should have happend already..
 
-// stubs called by the above patched SunVoxLib impl 
-window.svInitWebAudio = function(data) {
-	sda_data = data;	// WTF is "data"? on EMSCRIPTEN heap? 
-	return window._gPlayerAudioCtx.sampleRate;
-};
-window.svGetBufferSizeStub = function(buffersize, channels) {
-	// original impl suggests that SunVox might not handle buffer > than 4096
-	window.svBufferSize= (buffersize == 0) || (buffersize > 4096) ? 4096 : buffersize;
-	return window.svBufferSize;
-}
-
-window.svStartWebAudio = function(webaudioCallback) {
-	window.svRenderer= webaudioCallback;	// just remember the callback for later use in the backend adapter (see below)
-}
-window.svStopWebAudio = function() {}				// just disable
-
 SunVoxBackendAdapter= (function(){ var $this = function () {
-		this.channels= 2;
-		$this.base.call(this, backend_SUNVOX.Module, this.channels);
+		$this.base.call(this, backend_SUNVOX.Module, 2);
 
+		// sunvox delivers exactely what WebAudio expects
+		this._sampleRate=  this._inputSampleRate= window._gPlayerAudioCtx.sampleRate;
+		
 		this.isReady= false;
 		this.framesPlayed= 0;
-		this.tmpBuffer;
+		
+		this.bufferSize= 4096;
+		
+		this.slotOpen= false;
 		
 		if (!backend_SUNVOX.Module.notReady) {
 			// in sync scenario the "onRuntimeInitialized" has already fired before execution gets here,
@@ -200,22 +86,17 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			this.doOnAdapterReady();
 		}			
 	}; 
-	extend(EmsHEAP16BackendAdapter, $this, {
+	extend(EmsHEAPF32BackendAdapter, $this, {
 		doOnAdapterReady: function() {
 			console.log( "SunVoxLib loading is complete" );
 			
 			// provide fake since drag&drop needs it.. 
 			this.Module["FS_createDataFile"]= function(path, file, data, a, b) { return true;}
-			
-			// it seems that the SV_INIT_FLAG_USER_AUDIO_CALLBACK flag might be meant to bypass built-in WebAudio
-			// impl without having to patch it.. HOWEVER without some kind of documentation it is totally
-			// unclear how that crappy API is supposed to work.. (while using the patched "built-in" 
-			// logic the flags seem to be without any effects..)
-			
-			var flags= SV_INIT_FLAG_ONE_THREAD | SV_INIT_FLAG_AUDIO_FLOAT32 ;
-			
-			// for some reason sunvox expects fixed 44100 here..
-			var ver = sv_init( 0, 44100, this.channels, flags ); //Global sound system init
+						
+			var flags= SV_INIT_FLAG_USER_AUDIO_CALLBACK | SV_INIT_FLAG_ONE_THREAD | SV_INIT_FLAG_AUDIO_FLOAT32 ;
+
+		    var ver = this.Module._sv_init( 0, this._inputSampleRate, this.channels, flags );		//Global sound system init
+
 			if( ver >= 0 ) {
 				//Show information about the library:
 				var major = ( ver >> 16 ) & 255;
@@ -226,60 +107,44 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 				console.log( "SunVoxLib init error" );
 				return;
 			}
-			sv_open_slot( 0 ); //Open sound slot 0 for SunVox; you can use several slots simultaneously (each slot with its own SunVox engine)			
 			this.isReady = true;
+		},
+		getBufferPtr: function() {
+			if (typeof this.dataPtr == 'undefined') {
+				var num_bytes= this.bufferSize * this.channels * 4;	// for F32				
+				this.dataPtr = this.Module._malloc(num_bytes);
+			}
+			return this.dataPtr;
 		},
 		isAdapterReady: function() { 
 			return this.isReady;
 		},		
 		getAudioBuffer: function() {
-			return this.buf_ptr1 >> 1;	// 16 bit samples
+			return this.getBufferPtr() >> 2;	// 32 bit samples
 		},
 		getAudioBufferLength: function() {
-			return window.svBufferSize;
+			return this.renderSize;
 		},
 		computeAudioSamples: function() {
-			if (this.framesPlayed >= this.getMaxPlaybackPosition()) return 1;
+			if (!this.renderSize || (this.framesPlayed >= this.getMaxPlaybackPosition())) return 1;
 			
-			var len= window.svBufferSize;
+			this.renderSize= Math.min(this.bufferSize, this.getMaxPlaybackPosition() - this.getPlaybackPosition());
 			
-			if (typeof this.tmpBuffer == 'undefined') {
-				this.tmpBuffer= new Float32Array(window.svBufferSize*2);
-			}		
+			var out_buf = this.getBufferPtr();			
+			var frames= this.renderSize;
+			var latency= 0;
+			var out_time= this.Module._sv_get_ticks();
 			
-			// note: sv_audio_callback2 isn't called here and it is probably only used in SV_INIT_FLAG_USER_AUDIO_CALLBACK mode..
-			
-			// in spite of the int16 sample output settings it seems that the original player
-			// expects 2 separated channels based on F32!?? while the EmsHEAP16BackendAdapter needs interleaved int16			
-			
-			var t= this.framesPlayed & 0x7ff;	// WTF this is used for?
-			
-			var buf_ptr1 = window.svRenderer( sda_data, len, t );
-				
-			for (var i= 0; i<len; i++) {	// interleave data
-				var l= this.Module.HEAPF32[(buf_ptr1 >> 2) + i] * 0x8000;			// convert to int16 
-				var r= this.Module.HEAPF32[(buf_ptr1 >> 2) + len + i] * 0x8000;
-				
-				l= Math.max(Math.min(l, 0x8000), -0x7fff);
-				r= Math.max(Math.min(r, 0x8000), -0x7fff);
-				
-				this.tmpBuffer[2*i]= l
-				this.tmpBuffer[2*i+1]= r;
-			}
-			
-			// just overwrite existing buffer.. should not hurt
-			for (var i= 0; i<len*2; i++) {
-				this.Module.HEAP16[(buf_ptr1 >> 1)+i]= this.tmpBuffer[i];
-			}
-			
-			this.buf_ptr1= buf_ptr1;
-			
-			this.framesPlayed+= len;
+			var rv = this.Module._sv_audio_callback( out_buf, frames, latency, out_time );
+	
+			this.framesPlayed+= this.renderSize;
 
 			return 0;
-		},
-		getMaxPlaybackPosition: function() { 
-			return sv_get_song_length_frames( 0 );
+		},		
+		getMaxPlaybackPosition: function() {
+			if (!this.renderSize) return 0;
+			
+			return this.Module._sv_get_song_length_frames( 0 );
 		},
 		getPlaybackPosition: function() {
 			return this.framesPlayed;
@@ -292,8 +157,7 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 		},
 		mapInternalFilename: function(overridePath, basePath, filename) {
 			return filename;
-		},
-		
+		},		
 		getPathAndFilename: function(filename) {
 			var sp = filename.split('/');
 			var fn = sp[sp.length-1];					
@@ -312,15 +176,25 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			return this.registerEmscriptenFileData(pathFilenameArray, data);
 		},
 		
+		loadFromMemory: function( slot, byte_array ) { //load from Uint8Array
+			var mptr = this.Module.allocate( byte_array, 'i8', this.Module.ALLOC_NORMAL );
+			if( mptr == 0 ) { return -1; }
+			var rv = this.Module._sv_load_from_memory( slot, mptr, byte_array.byteLength );
+			this.Module._free( mptr );
+			return rv;
+		},
+
 		loadMusicData: function(sampleRate, path, filename, data, options) {
 			if (data == null) return 1;
+
+			this.openSlot();
 			
-			if( sv_load_from_memory( 0, data ) == 0 ) {
-				sv_play_from_beginning( 0 );
-				
-				sv_volume(0, 60);	// what is not too loud?
+			if ( this.loadFromMemory( 0, data ) == 0 ) {	
+				this.Module._sv_volume(0, 256);	// what is not too loud?
+				this.Module._sv_play_from_beginning( 0 );
 				
 				this.framesPlayed= 0;
+				this.renderSize= this.bufferSize;
 				
 				return 0;
 			}
@@ -333,7 +207,22 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 			}
 			return 0;
 		},
+		openSlot: function() {
+			if(!this.slotOpen) {
+				this.Module._sv_open_slot( 0 );
+				this.slotOpen= true;
+			}
+		},
 		teardown: function() {
+			this.renderSize= this.framesPlayed= 0;
+
+			if(this.slotOpen) {
+				try {
+					this.Module._sv_close_slot( 0 );	// for some reason this doesn't always seem to work
+				} catch(ignore) {}
+				
+				this.slotOpen= false;
+			}
 		},
 		getSongInfoMeta: function() {
 			return {			
@@ -341,7 +230,7 @@ SunVoxBackendAdapter= (function(){ var $this = function () {
 				};
 		},
 		updateSongInfo: function(filename, result) {
-			result.title= sv_get_song_name( 0 );
+			result.title= this.Module.Pointer_stringify( this.Module._sv_get_song_name( 0 ) );
 		},	
 	}
 );	return $this; })();
